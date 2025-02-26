@@ -1,0 +1,55 @@
+package main
+
+import (
+    "net/http"
+    "strconv"
+
+    "github.com/gorilla/mux"
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
+)
+
+func main() {
+    db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+    if err != nil {
+        panic("failed to connect database")
+    }
+
+    // Initialize the router
+    r := mux.NewRouter()
+
+    // Define the search and filter endpoint
+    r.HandleFunc("/products", func(w http.ResponseWriter, r *http.Request) {
+        var products []Product
+        query := db
+
+        name := r.URL.Query().Get("name")
+        if name != "" {
+            query = query.Where("name LIKE ?", "%"+name+"%")
+        }
+
+        category := r.URL.Query().Get("category")
+        if category != "" {
+            query = query.Joins("JOIN product_categories ON products.id = product_categories.product_id").
+                Joins("JOIN categories ON categories.id = product_categories.category_id").
+                Where("categories.name = ?", category)
+        }
+
+        minPrice := r.URL.Query().Get("minPrice")
+        if minPrice != "" {
+            min, _ := strconv.ParseFloat(minPrice, 64)
+            query = query.Where("price >= ?", min)
+        }
+
+        maxPrice := r.URL.Query().Get("maxPrice")
+        if maxPrice != "" {
+            max, _ := strconv.ParseFloat(maxPrice, 64)
+            query = query.Where("price <= ?", max)
+        }
+
+        query.Find(&products)
+        json.NewEncoder(w).Encode(products)
+    }).Methods("GET")
+
+    http.ListenAndServe(":8080", r)
+}
