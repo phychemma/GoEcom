@@ -50,7 +50,6 @@ func HandleLoginWithGoogle(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleCallbackFromGoogle(db *gorm.DB) http.HandlerFunc {
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("state") != oauthStateString {
 			utils.RespondWithError(w, http.StatusBadRequest, "State is invalid")

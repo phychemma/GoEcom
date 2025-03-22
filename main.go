@@ -34,12 +34,10 @@ func init() {
 	}
 
 	if err := db.AutoMigrate(&models.Order{}, &models.User{}, &models.Profile{}, &models.Product{}, &models.Picture{}, &models.Review{}, &models.Chat{}, &models.Cart{}); err != nil {
-
 		return
 	}
 }
 
 func main() {
-
 	routes.Routes(db)
 }

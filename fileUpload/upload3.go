@@ -37,7 +37,7 @@ type UploadData struct {
 	UsePath   string
 }
 
-func (u *UploadData) generator(done <-chan interface{}, form *multipart.Form) <-chan *multipart.FileHeader {
+func (u *UploadData) generator(done <-chan any, form *multipart.Form) <-chan *multipart.FileHeader {
 	formChan := make(chan *multipart.FileHeader)
 	go func() {
 		defer close(formChan)
@@ -58,7 +58,7 @@ func (u *UploadData) generator(done <-chan interface{}, form *multipart.Form) <-
 	return formChan
 }
 
-func (u *UploadData) typeCheck(done <-chan interface{}, file <-chan *multipart.FileHeader, names *[]string) <-chan *multipart.File {
+func (u *UploadData) typeCheck(done <-chan any, file <-chan *multipart.FileHeader, names *[]string) <-chan *multipart.File {
 	fileChan := make(chan *multipart.File)
 	go func() {
 		defer close(fileChan)
@@ -94,7 +94,7 @@ func (u *UploadData) typeFit(buf *bufio.Reader) bool {
 	return matched
 }
 
-func (u *UploadData) addFile(done <-chan interface{}, file <-chan *multipart.File, names *[]string) <-chan string {
+func (u *UploadData) addFile(done <-chan any, file <-chan *multipart.File, names *[]string) <-chan string {
 	filePath := make(chan string)
 	go func() {
 		defer close(filePath)
@@ -146,7 +146,7 @@ func (u *UploadData) addFile(done <-chan interface{}, file <-chan *multipart.Fil
 
 func (u *UploadData) NewUpload() (map[string][]string, []string, error) {
 	names := []string{}
-	done := make(chan interface{})
+	done := make(chan any)
 	defer close(done)
 	u.Req.Body = http.MaxBytesReader(u.Res, u.Req.Body, u.MaxSize)
 	rd, err := u.Req.MultipartReader()
