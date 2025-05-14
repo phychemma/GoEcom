@@ -35,48 +35,51 @@ func Register(db *gorm.DB) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			utils.RespondWithError(w, http.StatusBadRequest, "Invalid user request payload")
 			return
-		}
+		} // Extract the user data
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Error hashing password")
 			return
-		}
-		verificationCode := getCode()
-		user.Password = string(hashedPassword)
+		} // convert paword to hash
 
-		if userIsAdmin(user.Email) {
+		verificationCode := getCode() // get code for email confirmation
+
+		user.Password = string(hashedPassword) // set hash to user Model
+
+		if userIsAdmin(user.Email) { // check if user is an admin or ordinary user
 			user.Role = "admin"
 		} else {
 			user.Role = "user"
 		}
 
 		user.VerificationCode = verificationCode
-		if err := sendAuthMail(verificationCode, user.Email); err != nil {
+		if err := sendAuthMail(verificationCode, user.Email); err != nil { // sendnemail to the addres
 			//utils.RespondWithError(w, http.StatusInternalServerError, "Error sending Email")
 			//return
 		}
 		log.Println((verificationCode))
-		emailExist, userEmailExist, err := emailExists2(db, user.Email)
+
+		emailExist, userObject, err := emailExists2(db, user.Email) // check if email exist(if the user data exist it wuld return the user data )
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Error checking for email")
 			return
 		}
-		if !userEmailExist.EmailVerified && emailExist {
-			result := db.Delete(&models.User{}, userEmailExist.ID)
+		if !userObject.EmailVerified && emailExist { // if the user exist and the email is not verified delete the user details
+			result := db.Delete(&models.User{}, userObject.ID)
 			if result.Error != nil {
 				log.Println()
 			}
 		}
-		user.Username = strings.Split(user.Email, "@")[0]
+		user.Username = strings.Split(user.Email, "@")[0] // extracting username form email address
 
-		userExist, _, userErr := userExists2(db, user.Username)
+		userExist, _, userErr := userExists2(db, user.Username) // checking if username exist
 		if userErr != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Error checking for username")
 			return
 		}
 		userid := 0
-		for userExist {
+		for userExist { // if username exist add sequence of number to the back and check until unused one is found
 			userid += 1
 			user.Username = fmt.Sprintf(`%s%d`, user.Username, userid)
 			userExist, _, userErr = userExists2(db, user.Username)
@@ -86,19 +89,19 @@ func Register(db *gorm.DB) http.HandlerFunc {
 			}
 		}
 
-		result := db.Create(&user)
+		result := db.Create(&user) // finally you cam create a user
 		if result.Error != nil {
 			log.Print(result.Error)
 			utils.RespondWithError(w, http.StatusInternalServerError, "Error registering user")
 			return
 		}
 
-		user.Password = ""
-		user.Role = ""
+		user.Password = "" // empty password
+		user.Role = ""     // empty Role
 
 		w.WriteHeader(http.StatusCreated)
 
-		if err := json.NewEncoder(w).Encode(user); err != nil {
+		if err := json.NewEncoder(w).Encode(user); err != nil { // send object to the front end
 			utils.RespondWithError(w, http.StatusInternalServerError, "Error responding")
 			return
 		}

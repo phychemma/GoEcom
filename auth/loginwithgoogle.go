@@ -21,9 +21,11 @@ var (
 )
 
 func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if os.Getenv("RENDER") == "" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	if clientID == "" {
@@ -51,19 +53,19 @@ func HandleLoginWithGoogle(w http.ResponseWriter, r *http.Request) {
 
 func HandleCallbackFromGoogle(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("state") != oauthStateString {
+
+		if r.URL.Query().Get("state") != oauthStateString { // checking for  state by extracting
 			utils.RespondWithError(w, http.StatusBadRequest, "State is invalid")
 			return
 		}
 		code := r.URL.Query().Get("code")
-		token, err := googleOauthConfig.Exchange(context.Background(), code)
+		token, err := googleOauthConfig.Exchange(context.Background(), code) // extractimg the code variable for token use
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Code exchange failed")
-
 			return
 		}
 
-		client := googleOauthConfig.Client(context.Background(), token)
+		client := googleOauthConfig.Client(context.Background(), token) // getting the user details from token
 		resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed getting user info")
@@ -71,8 +73,8 @@ func HandleCallbackFromGoogle(db *gorm.DB) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
-		var userInfo map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		var userInfo map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil { //marshal with map
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to parse user info")
 			return
 		}
@@ -84,10 +86,10 @@ func HandleCallbackFromGoogle(db *gorm.DB) http.HandlerFunc {
 			utils.RespondWithError(w, http.StatusInternalServerError, "error checking email")
 			return
 		}
-		if !returnedUser.EmailVerified {
+		if !returnedUser.EmailVerified { // delete if user exist and email is not verified
 			db.Delete(&models.User{}, returnedUser.ID)
 		}
-		if !exist {
+		if !exist { // creating new user
 			returnedUser.Role = "user"
 			returnedUser.EmailVerified = true
 			returnedUser.Email = email
@@ -99,11 +101,10 @@ func HandleCallbackFromGoogle(db *gorm.DB) http.HandlerFunc {
 			}
 		} else {
 			if !returnedUser.EmailVerified {
-				db.Model(&returnedUser).Updates(models.User{EmailVerified: true})
+				db.Model(&returnedUser).Updates(models.User{EmailVerified: true}) // since unverified email has been deleted this part is just meant to meant to update last login just a thought
 			}
 		}
-
-		jwttoken, tokenErr := getToken(returnedUser.ID, name, email, "user")
+		jwttoken, tokenErr := getToken(returnedUser.ID, name, email, "user") // set token
 		if tokenErr != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to generate token")
 			return
