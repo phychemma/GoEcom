@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -109,7 +110,7 @@ func GetUerSessionData(r *http.Request) (map[string]interface{}, error) {
 func CheckIfAuthenticated(w http.ResponseWriter, r *http.Request) {
 	data, err := GetUerSessionData(r)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Error geting data from session")
+		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf(`Error geting data from session %d`, err))
 		return
 	}
 	if err := json.NewEncoder(w).Encode(data); err != nil {
