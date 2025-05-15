@@ -30,9 +30,12 @@ func getToken(id uint, username, email, role string) (string, error) {
 
 func setTokenToCookie(w http.ResponseWriter, name, token string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:    name,
-		Value:   token,
-		Expires: time.Now().Add(time.Hour * 72),
+		Name:     name,
+		Value:    token,
+		Expires:  time.Now().Add(time.Hour * 72),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
